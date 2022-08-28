@@ -1,0 +1,95 @@
+library(glasso)
+library(EfficientMaxEigenpair)
+library(mvtnorm)
+library(GGMncv)
+
+de.spar.gLasso<-function(p,n,N,Rho){
+sigma.mat<-matrix(0,p,p)
+for(ii in 1:p){
+  for(jj in 1:p){
+    sigma.mat[ii,jj]<-Rho^(abs(ii-jj))
+  }
+}
+
+T.VEC<-lower<-upper<-length<-K<-array(0,dim=c(p,p,N))
+for(i in 1:N){
+
+  data<-rmvnorm(n, mean = rep(0, nrow(sigma.mat)),sigma=sigma.mat)
+  s<-cov(data) 
+  Theta<-solve(sigma.mat)
+  a<-glasso(s, rho=sqrt(log(p)/n)) 
+  #aa<-glasso(s,rho=sqrt(log(p)/n), w.init=a$w, wi.init=a$wi)
+  aa<-a
+  T<-2*aa$wi-(aa$wi%*%s%*%aa$wi)
+  for(j in 1:p){
+    for(k in 1:p){
+      
+      T.VEC[j,k,i]<-sqrt(n)*((T[j,k]-Theta[j,k])/sqrt((aa$wi[j,j]*aa$wi[k,k])+(aa$wi[j,k]^2)))
+      lower[j,k,i]<-T[j,k]-(qnorm((1-(0.05/2)), mean = 0, sd = 1)*((sqrt((aa$wi[j,j]*aa$wi[k,k])+(aa$wi[j,k]^2)))/sqrt(n)))
+      upper[j,k,i]<-T[j,k]+(qnorm((1-(0.05/2)), mean = 0, sd = 1)*((sqrt((aa$wi[j,j]*aa$wi[k,k])+(aa$wi[j,k]^2)))/sqrt(n)))
+      length[j,k,i]<-upper[j,k,i]-lower[j,k,i]
+      
+      
+      if(lower[j,k,i]<Theta[j,k]&Theta[j,k]<upper[j,k,i]){
+        K[j,k,i]<-1
+      }else{
+        K[j,k,i]<-0
+      }
+    }
+  }
+}
+
+Avglength<-AvgCP<-matrix(0,p,p)
+for(j in 1:p){
+  for(k in 1:p){
+    Avglength[j,k]<-mean(length[j,k,])
+      AvgCP[j,k]<-mean(K[j,k,])  
+    
+  }
+}
+return(list(Avglength=Avglength,AvgCP=AvgCP,T.STAT=T.VEC))
+}
+#------------------------------------------------------------------------
+p.vec<-c(50,100,150)
+rho.vec<-c(0.1,0.3,0.5,0.7,0.9)
+NN<-1000
+nn<-100
+
+Table<-array(0,dim = c(length(p.vec),6,length(rho.vec)))
+for(j in 1:length(rho.vec)){
+  for(k in 1:length(p.vec)){
+    print(c(j,k))
+    RESULT<-de.spar.gLasso(p.vec[k],nn,NN,rho.vec[j])
+    Table[k,,j]<-c(RESULT$Avglength[2,5],RESULT$AvgCP[2,5],
+                     RESULT$Avglength[2,7],RESULT$AvgCP[2,7],
+                     RESULT$Avglength[2,9],RESULT$AvgCP[2,9])
+    
+  }
+}
+
+column.names<-c("Theta25.AW","Theta25.CP","Theta27.AW","Theta27.CP","Theta29.AW","Theta29.CP")
+row.names<-c("p=50","p=100","p=150")
+matrix.names<-c("Rho=0.1","Rho=0.3","Rho=0.5","Rho=0.7","Rho=0.9")
+
+Table<-array(Table,dim = c(length(p.vec),6,length(rho.vec)),dimnames = list(row.names,column.names,
+   matrix.names))
+print(Table)
+
+#------------------------------------------------------------------------
+Result<-de.spar.gLasso(150,100,1000,0.5)
+par(mfrow=c(1,3))
+hist(Result$T.STAT[2,5,],col="blue",freq=F,xlim=c(-3,3),ylim = c(0,0.8),
+      xlab="",main=expression(sqrt(n)(hat(T)[25]-theta[25]^"*")/hat(sigma)[25]),cex.main=3)
+curve(dnorm(x,0,1),from =-3,to =3, add=TRUE,lwd=2,lty=2,col="red")
+
+
+hist(Result$T.STAT[2,7,],col="blue",freq=F,xlim=c(-3,3),ylim = c(0,0.7),
+       xlab="",main=expression(sqrt(n)(hat(T)[27]-theta[27]^"*")/hat(sigma)[27]),cex.main=3)
+curve(dnorm(x,0,1),from =-3,to =3, add=TRUE,lwd=2,lty=2,col="red")
+
+hist(Result$T.STAT[2,9,],col="blue",freq=F,xlim=c(-3,3),ylim = c(0,0.7),
+    xlab="",main=expression(sqrt(n)(hat(T)[29]-theta[29]^"*")/hat(sigma)[29]),cex.main=3)
+curve(dnorm(x,0,1),from =-3,to =3, add=TRUE,lwd=2,lty=2,col="red")
+
+
+
