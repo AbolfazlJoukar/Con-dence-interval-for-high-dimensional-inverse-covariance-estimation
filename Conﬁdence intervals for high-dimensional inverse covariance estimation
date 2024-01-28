@@ -2,7 +2,6 @@ library(glasso)
 library(EfficientMaxEigenpair)
 library(mvtnorm)
 library(GGMncv)
-
 de.spar.gLasso<-function(p,n,N,Rho){
 sigma.mat<-matrix(0,p,p)
 for(ii in 1:p){
@@ -74,7 +73,6 @@ matrix.names<-c("Rho=0.1","Rho=0.3","Rho=0.5","Rho=0.7","Rho=0.9")
 Table<-array(Table,dim = c(length(p.vec),6,length(rho.vec)),dimnames = list(row.names,column.names,
    matrix.names))
 print(Table)
-
 #------------------------------------------------------------------------
 Result<-de.spar.gLasso(150,100,1000,0.5)
 par(mfrow=c(1,3))
